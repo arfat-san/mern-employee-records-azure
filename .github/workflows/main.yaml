@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -13,10 +14,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     environment: Testing
+
     strategy:
       matrix:
         node-version: [20.x, 22.x]
       max-parallel: 1
+
     services:
       mongodb:
         image: mongo:latest
@@ -62,15 +65,22 @@ jobs:
 
       - name: Wait for server to be ready
         run: |
-          npx wait-on http://localhost:5050/record --timeout 30000 || (cat /tmp/server.log && exit 1)
+          npx --yes wait-on http://localhost:5050/record --timeout 30000 || (cat /tmp/server.log && exit 1)
+
+      - name: Start frontend server
+        run: |
+          cd mern/client
+          nohup npm run dev -- --host 0.0.0.0 > /tmp/client.log 2>&1 &
+          echo $! > /tmp/client.pid
+
+      - name: Wait for frontend server
+        run: |
+          npx --yes wait-on http://127.0.0.1:5173 --timeout 120000 || (cat /tmp/client.log && exit 1)
 
       - name: Install Cypress and run tests
         uses: cypress-io/github-action@v6
         with:
           working-directory: mern/client
-          start: npm run dev -- --host 0.0.0.0
-          wait-on: 'http://127.0.0.1:5173'
-          wait-on-timeout: 120000
 
   notify-on-failure:
     needs: build
@@ -78,6 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+
     steps:
       - name: File or update CI failure issue for @mongodb-developer/learning-fuel
         uses: actions/github-script@v7
