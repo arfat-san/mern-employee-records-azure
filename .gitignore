@@ -1,15 +1,26 @@
+
 # Dependencies
 node_modules/
 **/node_modules/
 
 # Environment variables and secrets
 config.env
+**/config.env
 config.env.*
-!.env.example
-!config.env.example
+**/config.env.*
+
 .env
 .env.*
+**/.env
+**/.env.*
+
+# Allow safe example and production configuration files
+!config.env.example
+!**/config.env.example
 !.env.example
+!**/.env.example
+!.env.production
+!**/.env.production
 
 # Build outputs
 dist/
