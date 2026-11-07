@@ -19,8 +19,6 @@ config.env.*
 !**/config.env.example
 !.env.example
 !**/.env.example
-!.env.production
-!**/.env.production
 
 # Build outputs
 dist/
