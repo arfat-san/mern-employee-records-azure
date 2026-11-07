@@ -3,9 +3,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '5 6 * * 1'
@@ -22,17 +22,17 @@ jobs:
 
     services:
       mongodb:
-        image: mongo:latest
-        options: >-
-          --health-cmd "mongosh --username admin --password mongodb --authenticationDatabase admin --eval \"db.adminCommand('ping')\""
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        image: mongo:7.0
         ports:
           - 27017:27017
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: mongodb
+        options: >-
+          --health-cmd "mongosh --username admin --password mongodb --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -42,43 +42,43 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: |
             mern/server/package-lock.json
             mern/client/package-lock.json
 
       - name: Install server dependencies
-        run: npm ci
         working-directory: mern/server
-
-      - name: Install frontend dependencies
         run: npm ci
+
+      - name: Install client dependencies
         working-directory: mern/client
+        run: npm ci
 
       - name: Start backend server
+        working-directory: mern/server
         env:
           DOCUMENTDB_URI: mongodb://admin:mongodb@localhost:27017/employees?authSource=admin
         run: |
           echo "DOCUMENTDB_URI=$DOCUMENTDB_URI" > config.env
           npm start > /tmp/server.log 2>&1 &
-          echo "Server PID: $!"
-        working-directory: mern/server
+          echo $! > /tmp/server.pid
 
       - name: Wait for backend server
         run: |
-          npx --yes wait-on http://localhost:5050/record --timeout 30000 || (cat /tmp/server.log && exit 1)
+          npx --yes wait-on http://localhost:5050/record --timeout 60000 || (cat /tmp/server.log && exit 1)
 
       - name: Start frontend server
+        working-directory: mern/client
         run: |
-          cd mern/client
-          nohup npm run dev -- --host 0.0.0.0 > /tmp/client.log 2>&1 &
+          npm run dev -- --host 0.0.0.0 > /tmp/client.log 2>&1 &
           echo $! > /tmp/client.pid
 
       - name: Wait for frontend server
         run: |
           npx --yes wait-on http://127.0.0.1:5173 --timeout 120000 || (cat /tmp/client.log && exit 1)
 
-      - name: Install Cypress and run tests
+      - name: Run Cypress tests
         uses: cypress-io/github-action@v6
         with:
           working-directory: mern/client
@@ -97,7 +97,7 @@ jobs:
           script: |
             const title = `CI failure on ${context.ref}`;
             const body = [
-              '@mongodb-developer/learning-fuel the CI workflow failed.',
+              'The CI workflow failed.',
               '',
               `Workflow: ${context.workflow}`,
               `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
